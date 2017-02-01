@@ -135,7 +135,7 @@ impl<I: Read + Send + 'static, O: Write> Terminal<I, O> {
 					}
 				}
 
-				sender.send(Event::Closed);
+				sender.send(Event::Close);
 			});
 
 			Ok(receiver)

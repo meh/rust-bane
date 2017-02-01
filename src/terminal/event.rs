@@ -14,10 +14,10 @@
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Event {
+	Close,
 	Resize,
 	Key(Key),
 	Input(String),
-	Closed,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
