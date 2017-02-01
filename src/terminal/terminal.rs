@@ -18,7 +18,6 @@ use std::os::unix::io::{AsRawFd, RawFd};
 
 use std::thread;
 use chan;
-use signal::{self, Signal};
 
 use libc::{isatty, STDIN_FILENO, STDOUT_FILENO};
 use info;
@@ -27,6 +26,7 @@ use termios::{Termios, tcsetattr, TCSANOW};
 use size::{self, Size};
 use error::{self, Error};
 use terminal::{Features, Cursor, Screen};
+use terminal::resize;
 use terminal::event::{self, Event};
 
 #[derive(Debug)]
@@ -37,6 +37,7 @@ pub struct Terminal<I: Read = Stdin, O: Write = Stdout> {
 
 	database: Rc<info::Database>,
 	initial:  Termios,
+	resizer:  Option<u32>,
 }
 
 pub type Default = Terminal<Stdin, Stdout>;
@@ -50,8 +51,6 @@ impl Terminal<Stdin, Stdout> {
 			}
 		}
 
-		signal::notify(&[Signal::WINCH]);
-
 		Ok(Terminal {
 			tty:    STDOUT_FILENO,
 			input:  Some(io::stdin()),
@@ -59,6 +58,7 @@ impl Terminal<Stdin, Stdout> {
 
 			database: Rc::new(info::Database::from_env()?),
 			initial:  Termios::from_fd(STDOUT_FILENO)?,
+			resizer:  None,
 		})
 	}
 }
@@ -71,8 +71,6 @@ impl<I: Read + AsRawFd, O: Write + AsRawFd> Terminal<I, O> {
 				return Err(Error::NotInteractive);
 			}
 
-			signal::notify(&[Signal::WINCH]);
-
 			let tty = output.as_raw_fd();
 
 			Ok(Terminal {
@@ -82,6 +80,7 @@ impl<I: Read + AsRawFd, O: Write + AsRawFd> Terminal<I, O> {
 
 				database: Rc::new(info::Database::from_env()?),
 				initial:  Termios::from_fd(tty)?,
+				resizer:  None,
 			})
 		}
 	}
@@ -120,48 +119,24 @@ impl<I: Read + Send + 'static, O: Write> Terminal<I, O> {
 		use std::str;
 
 		if let Some(mut input) = self.input.take() {
-			let tty                = self.tty;
 			let (sender, receiver) = chan::sync(1);
-			let signals            = signal::notify(&[Signal::WINCH]);
+			self.resizer           = Some(resize::register(sender.clone()));
 
-			// Input handling.
-			{
-				let sender = sender.clone();
+			thread::spawn(move || {
+				let mut buffer = [0u8; 256];
 
-				thread::spawn(move || {
-					let mut buffer = [0u8; 256];
-	
-					while let Ok(amount) = input.read(&mut buffer) {
-						if amount == 0 {
-							break;
-						}
-	
-						if let Ok(value) = str::from_utf8(&buffer[..amount]) {
-							sender.send(Event::Input(value.into()));
-						}
+				while let Ok(amount) = input.read(&mut buffer) {
+					if amount == 0 {
+						break;
 					}
-	
-					sender.send(Event::Closed);
-				});
-			}
 
-			// Signal handling.
-			{
-				let sender = sender.clone();
-
-				thread::spawn(move || {
-					while let Some(signal) = signals.recv() {
-						match signal {
-							Signal::WINCH =>
-								if let Some(size) = size::get(tty) {
-									sender.send(Event::Resize(size));
-								},
-
-							_ => ()
-						}
+					if let Ok(value) = str::from_utf8(&buffer[..amount]) {
+						sender.send(Event::Input(value.into()));
 					}
-				});
-			}
+				}
+
+				sender.send(Event::Closed);
+			});
 
 			Ok(receiver)
 		}
@@ -209,6 +184,10 @@ impl<I: Read, O: Write> Read for Terminal<I, O> {
 
 impl<I: Read, O: Write> Drop for Terminal<I, O> {
 	fn drop(&mut self) {
+		if let Some(id) = self.resizer {
+			resize::unregister(id);
+		}
+
 		let _ = tcsetattr(self.tty, TCSANOW, &self.initial);
 	}
 }

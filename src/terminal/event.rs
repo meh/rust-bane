@@ -12,11 +12,9 @@
 //
 //  0. You just DO WHAT THE FUCK YOU WANT TO.
 
-use size::Size;
-
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Event {
-	Resize(Size),
+	Resize,
 	Key(Key),
 	Input(String),
 	Closed,

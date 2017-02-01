@@ -13,11 +13,12 @@
 //  0. You just DO WHAT THE FUCK YOU WANT TO.
 
 extern crate libc;
+extern crate chan;
+#[macro_use]
+extern crate lazy_static;
+
 extern crate control_code as control;
 extern crate termios;
-
-extern crate chan;
-extern crate chan_signal as signal;
 
 #[macro_use(expand)]
 pub extern crate terminfo;

@@ -24,5 +24,6 @@ pub use self::cursor::Cursor;
 pub mod event;
 pub use self::event::Event;
 
+mod resize;
 mod terminal;
 pub use self::terminal::{Terminal, Default};
