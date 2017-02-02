@@ -18,6 +18,9 @@ pub use self::features::Features;
 mod screen;
 pub use self::screen::Screen;
 
+pub mod erase;
+pub use self::erase::Erase;
+
 pub mod cursor;
 pub use self::cursor::Cursor;
 
