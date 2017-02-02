@@ -31,7 +31,7 @@ pub enum Travel {
 	Down(u32),
 	Left(u32),
 	Right(u32),
-	Position(Option<u32>, Option<u32>),
+	To(Option<u32>, Option<u32>),
 }
 
 impl<'a, I: Read + 'a, O: Write + 'a> Cursor<'a, I, O> {
@@ -128,7 +128,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Cursor<'a, I, O> {
 					}
 				},
 
-			Travel::Position(Some(x), Some(y)) =>
+			Travel::To(Some(x), Some(y)) =>
 				if let Ok(cap) = cap!(self.info => CursorAddress) {
 					expand!(&mut self.inner, cap; y, x)?;
 				}
@@ -137,13 +137,13 @@ impl<'a, I: Read + 'a, O: Write + 'a> Cursor<'a, I, O> {
 					expand!(&mut self.inner, cap!(self.info => RowAddress)?; y)?;
 				},
 
-			Travel::Position(Some(x), None) =>
+			Travel::To(Some(x), None) =>
 				expand!(&mut self.inner, cap!(self.info => ColumnAddress)?; x)?,
 
-			Travel::Position(None, Some(y)) =>
+			Travel::To(None, Some(y)) =>
 				expand!(&mut self.inner, cap!(self.info => RowAddress)?; y)?,
 
-			Travel::Position(None, None) =>
+			Travel::To(None, None) =>
 				(),
 		}
 
