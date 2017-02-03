@@ -25,7 +25,7 @@ use termios::{Termios, tcsetattr, TCSANOW};
 
 use size::{self, Size};
 use error::{self, Error};
-use terminal::{Features, Cursor, Screen, Erase};
+use terminal::{Features, Cursor, Screen, Erase, Text};
 use terminal::resize;
 use terminal::event::{self, Event};
 
@@ -115,6 +115,11 @@ impl<I: Read, O: Write> Terminal<I, O> {
 	/// Access erasion operations.
 	pub fn erase(&mut self) -> Erase<I, O> {
 		Erase::new(self)
+	}
+
+	/// Access text operations.
+	pub fn text(&mut self) -> Text<I, O> {
+		Text::new(self)
 	}
 }
 

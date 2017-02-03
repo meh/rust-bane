@@ -21,6 +21,9 @@ pub use self::screen::Screen;
 pub mod erase;
 pub use self::erase::Erase;
 
+pub mod text;
+pub use self::text::Text;
+
 pub mod cursor;
 pub use self::cursor::Cursor;
 
