@@ -12,28 +12,48 @@
 //
 //  0. You just DO WHAT THE FUCK YOU WANT TO.
 
+use std::rc::Rc;
 use std::io::{Read, Write};
 use std::os::unix::io::AsRawFd;
+
 use termios::{Termios, tcsetattr};
 use termios::{ICANON, ECHO, TCSANOW, IEXTEN, ISIG, VMIN, VTIME};
 
+use info::{self, capability as cap};
 use error;
 use terminal::Terminal;
 
 #[derive(Debug)]
 pub struct Features<'a, I: Read + 'a, O: Write + 'a> {
 	inner: &'a mut Terminal<I, O>,
+	info:  Rc<info::Database>,
 	state: Termios,
 }
 
 impl<'a, I: Read + 'a, O: Write + 'a> Features<'a, I, O> {
 	pub fn new<'b: 'a>(inner: &'b mut Terminal<I, O>) -> Features<'b, I, O> {
 		Features {
+			info:  inner.database().clone(),
 			state: Termios::from_fd(inner.as_raw_fd()).unwrap(),
 			inner: inner,
 		}
 	}
 
+	/// Get the number of colors, `None` signifies no limit, usually due to true
+	/// color support.
+	pub fn colors(&self) -> Option<i16> {
+		if let Ok(_) = cap!(self.info => TrueColor) {
+			None
+		}
+		else if let Ok(cap::MaxColors(n)) = cap!(self.info => MaxColors) {
+			Some(n)
+		}
+		else {
+			Some(1)
+		}
+	}
+
+	/// Change the echo mode.
 	pub fn echo(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
 			self.state.c_lflag |= ECHO;
@@ -47,7 +67,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Features<'a, I, O> {
 		Ok(self)
 	}
 
-	/// Change the terminal's raw mode.
+	/// Change the raw mode.
 	pub fn raw(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
 			self.state.c_lflag     &= !(ICANON | ISIG | IEXTEN);
