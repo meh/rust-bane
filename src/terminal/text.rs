@@ -20,6 +20,19 @@ use error;
 use terminal::Terminal;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
+pub enum Weight {
+	Default,
+	Bold,
+	Faint,
+}
+
+impl Default for Weight {
+	fn default() -> Self {
+		Weight::Default
+	}
+}
+
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Color {
 	Default,
 	Transparent,
@@ -55,23 +68,29 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
-	pub fn bold(&mut self, value: bool) -> error::Result<&mut Self> {
-		if value {
-			expand!(&mut self.inner, cap!(self.info => EnterBoldMode)?)?;
-		}
-		else {
-			return Err(error::Error::NotSupported);
-		}
+	pub fn weight(&mut self, value: Weight) -> error::Result<&mut Self> {
+		match value {
+			Weight::Default => {
+				self.inner.write(b"\x1B[22m")?;
+			}
 
-		Ok(self)
-	}
+			Weight::Bold => {
+				if let Ok(cap) = cap!(self.info => EnterBoldMode) {
+					expand!(&mut self.inner, cap)?;
+				}
+				else {
+					self.inner.write(b"\x1B[1m")?;
+				}
+			}
 
-	pub fn dim(&mut self, value: bool) -> error::Result<&mut Self> {
-		if value {
-			expand!(&mut self.inner, cap!(self.info => EnterDimMode)?)?;
-		}
-		else {
-			return Err(error::Error::NotSupported);
+			Weight::Faint => {
+				if let Ok(cap) = cap!(self.info => EnterDimMode) {
+					expand!(&mut self.inner, cap)?;
+				}
+				else {
+					self.inner.write(b"\x1B[2m")?;
+				}
+			}
 		}
 
 		Ok(self)
@@ -79,10 +98,15 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn reverse(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			expand!(&mut self.inner, cap!(self.info => EnterReverseMode)?)?;
+			if let Ok(cap) = cap!(self.info => EnterReverseMode) {
+				expand!(&mut self.inner, cap)?;
+			}
+			else {
+				self.inner.write(b"\x1B[7m")?;
+			}
 		}
 		else {
-			return Err(error::Error::NotSupported);
+			self.inner.write(b"\x1B[27m")?;
 		}
 
 		Ok(self)
@@ -90,10 +114,15 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn blink(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			expand!(&mut self.inner, cap!(self.info => EnterBlinkMode)?)?;
+			if let Ok(cap) = cap!(self.info => EnterBlinkMode) {
+				expand!(&mut self.inner, cap)?;
+			}
+			else {
+				self.inner.write(b"\x1B[5m")?;
+			}
 		}
 		else {
-			return Err(error::Error::NotSupported);
+			self.inner.write(b"\x1B[25m")?;
 		}
 
 		Ok(self)
@@ -101,10 +130,15 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn invisible(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			expand!(&mut self.inner, cap!(self.info => EnterSecureMode)?)?;
+			if let Ok(cap) = cap!(self.info => EnterSecureMode) {
+				expand!(&mut self.inner, cap)?;
+			}
+			else {
+				self.inner.write(b"\x1B[8m")?;
+			}
 		}
 		else {
-			return Err(error::Error::NotSupported);
+			self.inner.write(b"\x1B[28m")?;
 		}
 
 		Ok(self)
@@ -154,6 +188,17 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	pub fn struck(&mut self, value: bool) -> error::Result<&mut Self> {
+		if value {
+			self.inner.write(b"\x1B[9m")?;
+		}
+		else {
+			self.inner.write(b"\x1B[29m")?;
+		}
+
+		Ok(self)
+	}
+
 	pub fn foreground<T: Into<Color>>(&mut self, value: T) -> error::Result<&mut Self> {
 		match value.into() {
 			Color::Default => {
@@ -168,15 +213,30 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 				if let Ok(cap) = cap!(self.info => SetAForeground) {
 					expand!(&mut self.inner, cap; id)?
 				}
+				else if let Ok(cap) = cap!(self.info => SetForeground) {
+					expand!(&mut self.inner, cap; id)?
+				}
 				else {
-					expand!(&mut self.inner, cap!(self.info => SetForeground)?; id)?;
+					match cap!(self.info => MaxColors) {
+						Ok(cap::MaxColors(n)) if n >= 8 => {
+							self.inner.write(format!("\x1B[3{}m", id).as_ref())?;
+						}
+
+						_ =>
+							return Err(error::Error::NotSupported)
+					}
 				}
 			}
 
 			Color::Index(id) if id < 16 => {
 				match cap!(self.info => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 16 =>
-						expand!(&mut self.inner, cap!(self.info => SetAForeground)?; id)?,
+						if let Ok(cap) = cap!(self.info => SetAForeground) {
+							expand!(&mut self.inner, cap; id)?;
+						}
+						else {
+							self.inner.write(format!("\x1B[9{}m", id - 8).as_ref())?;
+						},
 
 					_ =>
 						return Err(error::Error::NotSupported)
@@ -186,7 +246,12 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			Color::Index(id) => {
 				match cap!(self.info => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 256 =>
-						expand!(&mut self.inner, cap!(self.info => SetAForeground)?; id)?,
+						if let Ok(cap) = cap!(self.info => SetAForeground) {
+							expand!(&mut self.inner, cap; id)?;
+						}
+						else {
+							self.inner.write(format!("\x1B[38;5;{}m", id).as_ref())?;
+						},
 
 					_ =>
 						return Err(error::Error::NotSupported)
@@ -223,15 +288,31 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 				if let Ok(cap) = cap!(self.info => SetABackground) {
 					expand!(&mut self.inner, cap; id)?
 				}
-				else {
-					expand!(&mut self.inner, cap!(self.info => SetBackground)?; id)?;
+				else if let Ok(cap) = cap!(self.info => SetBackground) {
+					expand!(&mut self.inner, cap; id)?
 				}
+				else {
+					match cap!(self.info => MaxColors) {
+						Ok(cap::MaxColors(n)) if n >= 8 => {
+							self.inner.write(format!("\x1B[4{}m", id).as_ref())?;
+						}
+
+						_ =>
+							return Err(error::Error::NotSupported)
+					}
+				}
+
 			}
 
 			Color::Index(id) if id < 16 => {
 				match cap!(self.info => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 16 =>
-						expand!(&mut self.inner, cap!(self.info => SetABackground)?; id)?,
+						if let Ok(cap) = cap!(self.info => SetABackground) {
+							expand!(&mut self.inner, cap; id)?;
+						}
+						else {
+							self.inner.write(format!("\x1B[10{}m", id - 8).as_ref())?;
+						},
 
 					_ =>
 						return Err(error::Error::NotSupported)
@@ -241,7 +322,12 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			Color::Index(id) => {
 				match cap!(self.info => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 256 =>
-						expand!(&mut self.inner, cap!(self.info => SetABackground)?; id)?,
+						if let Ok(cap) = cap!(self.info => SetABackground) {
+							expand!(&mut self.inner, cap; id)?;
+						}
+						else {
+							self.inner.write(format!("\x1B[48;5;{}m", id).as_ref())?;
+						},
 
 					_ =>
 						return Err(error::Error::NotSupported)
