@@ -48,8 +48,14 @@ impl<'a, I: Read + 'a, O: Write + 'a> Cursor<'a, I, O> {
 		Ok(self)
 	}
 
-	pub fn visible(&mut self) -> error::Result<&mut Self> {
+	pub fn normal(&mut self) -> error::Result<&mut Self> {
 		expand!(&mut self.inner, cap!(self.info => CursorNormal)?)?;
+
+		Ok(self)
+	}
+
+	pub fn visible(&mut self) -> error::Result<&mut Self> {
+		expand!(&mut self.inner, cap!(self.info => CursorVisible)?)?;
 
 		Ok(self)
 	}
