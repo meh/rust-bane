@@ -14,9 +14,10 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::mem;
 
 use chan;
-use libc::{signal, SIGWINCH, c_int, sighandler_t};
+use libc::{sigaction, SIGWINCH, c_int, sighandler_t};
 
 use terminal::Event;
 
@@ -44,7 +45,11 @@ pub fn register(sender: chan::Sender<Event>) -> u32 {
 
 	if guard.1.is_empty() {
 		unsafe {
-			signal(SIGWINCH, handler as sighandler_t);
+			let mut old: sigaction = mem::zeroed();
+			let mut new: sigaction = mem::zeroed();
+			new.sa_sigaction = handler as sighandler_t;
+
+			sigaction(SIGWINCH, &new, &mut old);
 		}
 	}
 
