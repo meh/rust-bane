@@ -222,6 +222,7 @@ impl<I: Read + Send + 'static, O: Write> Terminal<I, O> {
 								paste = Some(result);
 							}
 							else {
+								input = &current[b"\x1B[201~".len() ..];
 								sender.send(Event::Paste(result));
 							}
 						}
