@@ -13,6 +13,7 @@
 //  0. You just DO WHAT THE FUCK YOU WANT TO.
 
 use std::rc::Rc;
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::io::{self, Read, Write, Stdin, Stdout};
 use std::os::unix::io::{AsRawFd, RawFd};
 
@@ -25,18 +26,29 @@ use termios::{Termios, tcsetattr, TCSANOW};
 
 use size::{self, Size};
 use error::{self, Error};
-use terminal::{Features, Cursor, Screen, Erase, Text};
-use terminal::resize;
-use terminal::event::{self, Event};
+use {Features, Cursor, Screen, Erase, Text};
+use {resize};
+use keys::{Key, Keys};
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub enum Event {
+	Close,
+	Resize,
+	Paste(Vec<u8>),
+	Key(Key),
+}
 
 #[derive(Debug)]
 pub struct Terminal<I: Read = Stdin, O: Write = Stdout> {
 	tty:    RawFd,
-	input:  Option<I>,
 	output: O,
+
+	input:  Option<I>,
+	events: Option<chan::Receiver<Event>>,
 
 	database: Rc<info::Database>,
 	initial:  Termios,
+	keys:     Arc<Mutex<Keys>>,
 	resizer:  Option<u32>,
 }
 
@@ -51,15 +63,22 @@ impl Terminal<Stdin, Stdout> {
 			}
 		}
 
-		Ok(Terminal {
+		let info  = Rc::new(info::Database::from_env()?);
+		let state = Termios::from_fd(STDOUT_FILENO)?;
+		let keys  = Arc::new(Mutex::new(Keys::new(&info)));
+
+		Terminal {
 			tty:    STDOUT_FILENO,
-			input:  Some(io::stdin()),
 			output: io::stdout(),
 
-			database: Rc::new(info::Database::from_env()?),
-			initial:  Termios::from_fd(STDOUT_FILENO)?,
+			input:  Some(io::stdin()),
+			events: None,
+
+			database: info,
+			initial:  state,
+			keys:     keys,
 			resizer:  None,
-		})
+		}.setup()
 	}
 }
 
@@ -71,22 +90,56 @@ impl<I: Read + AsRawFd, O: Write + AsRawFd> Terminal<I, O> {
 				return Err(Error::NotInteractive);
 			}
 
-			let tty = output.as_raw_fd();
+			let tty   = output.as_raw_fd();
+			let info  = Rc::new(info::Database::from_env()?);
+			let state = Termios::from_fd(tty)?;
+			let keys  = Arc::new(Mutex::new(Keys::new(&info)));
 
-			Ok(Terminal {
+			Terminal {
 				tty:    tty,
-				input:  Some(input),
 				output: output,
 
-				database: Rc::new(info::Database::from_env()?),
-				initial:  Termios::from_fd(tty)?,
+				input:  Some(input),
+				events: None,
+
+				database: info,
+				initial:  state,
+				keys:     keys,
 				resizer:  None,
-			})
+			}.setup()
 		}
 	}
 }
 
 impl<I: Read, O: Write> Terminal<I, O> {
+	fn setup(mut self) -> error::Result<Self> {
+		use control::{self, CSI, DEC};
+
+		// Enable application cursor.
+		control::format_to(&mut self.output,
+			&DEC::Set(CSI::values(&[DEC::Mode::ApplicationCursor])), false)?;
+
+		// Enable application keypad.
+		control::format_to(&mut self.output,
+			&DEC::ApplicationKeypad(true), false)?;
+
+		// Enable bracketed paste and mouse support.
+		control::format_to(&mut self.output,
+			&CSI::Private(b'h', None, CSI::args(&[2004, 1006])), false)?;
+
+		// Commit the changes.
+		self.output.flush()?;
+
+		Ok(self)
+	}
+}
+
+impl<I: Read, O: Write> Terminal<I, O> {
+	/// Get the key handler.
+	pub fn keys(&mut self) -> MutexGuard<Keys> {
+		self.keys.lock().unwrap()
+	}
+
 	/// Get the terminal capability database.
 	pub fn database(&self) -> &Rc<info::Database> {
 		&self.database
@@ -125,34 +178,71 @@ impl<I: Read, O: Write> Terminal<I, O> {
 
 impl<I: Read + Send + 'static, O: Write> Terminal<I, O> {
 	/// Prepare for events.
-	pub fn events(&mut self) -> error::Result<chan::Receiver<Event>> {
-		use std::str;
+	pub fn events(&mut self) -> chan::Receiver<Event> {
+		if self.events.is_none() {
+			let mut stream = self.input.take().unwrap();
+			let     keys   = self.keys.clone();
 
-		if let Some(mut input) = self.input.take() {
 			let (sender, receiver) = chan::sync(1);
 			self.resizer           = Some(resize::register(sender.clone()));
 
 			thread::spawn(move || {
-				let mut buffer = [0u8; 256];
+				let mut buffer = [0u8; 4096];
+				let mut paste  = None;
 
-				while let Ok(amount) = input.read(&mut buffer) {
+				while let Ok(amount) = stream.read(&mut buffer) {
 					if amount == 0 {
 						break;
 					}
 
-					if let Ok(value) = str::from_utf8(&buffer[..amount]) {
-						sender.send(Event::Input(value.into()));
+					let mut input = &buffer[..amount];
+
+					while !input.is_empty() {
+						if paste.is_some() || input.starts_with(b"\x1B[200~") {
+							if paste.is_none() {
+								input = &input[b"\x1B[200~".len() ..];
+							}
+
+							let mut result  = paste.take().unwrap_or(Vec::new());
+							let mut count   = 0;
+							let mut current = input;
+
+							while !current.is_empty() {
+								if !current.starts_with(b"\x1B[201~") {
+									count   += 1;
+									current  = &current[1..];
+								}
+								else {
+									result.extend_from_slice(&input[.. count]);
+									break;
+								}
+							}
+
+							if current.is_empty() {
+								paste = Some(result);
+							}
+							else {
+								sender.send(Event::Paste(result));
+							}
+						}
+						else {
+							let (rest, key) = keys.lock().unwrap().find(input);
+							input           = rest;
+
+							if let Some(key) = key {
+								sender.send(Event::Key(key));
+							}
+						}
 					}
 				}
 
 				sender.send(Event::Close);
 			});
 
-			Ok(receiver)
+			self.events = Some(receiver.clone());
 		}
-		else {
-			Err(io::Error::new(io::ErrorKind::NotConnected, "events() has already been called").into())
-		}
+
+		self.events.clone().unwrap()
 	}
 }
 

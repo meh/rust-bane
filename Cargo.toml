@@ -13,7 +13,10 @@ keywords    = ["terminal", "tui", "curses"]
 libc        = "0.2"
 chan        = "0.1"
 lazy_static = "0.2"
+bitflags    = "0.7"
+fnv         = "1.0"
 
-control-code = "0.6"
+control-code = "0.6.3"
 terminfo     = "0.2"
 termios      = "0.2"
+

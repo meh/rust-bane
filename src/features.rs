@@ -17,7 +17,7 @@ use std::io::{Read, Write};
 use std::os::unix::io::AsRawFd;
 
 use termios::{Termios, tcsetattr};
-use termios::{ICANON, ECHO, TCSANOW, IEXTEN, ISIG, VMIN, VTIME};
+use termios::{ICANON, ECHO, TCSANOW, IEXTEN, ISIG, IXOFF, IXON, VMIN, VTIME};
 
 use info::{self, capability as cap};
 use error;
@@ -71,11 +71,13 @@ impl<'a, I: Read + 'a, O: Write + 'a> Features<'a, I, O> {
 	pub fn raw(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
 			self.state.c_lflag     &= !(ICANON | ISIG | IEXTEN);
+			self.state.c_iflag     &= !(IXOFF | IXON);
 			self.state.c_cc[VMIN]   = 1;
 			self.state.c_cc[VTIME]  = 0;
 		}
 		else {
 			self.state.c_lflag |= ISIG | ICANON | IEXTEN;
+			self.state.c_iflag |= IXOFF | IXON;
 		}
 
 		tcsetattr(self.inner.as_raw_fd(), TCSANOW, &self.state)?;
