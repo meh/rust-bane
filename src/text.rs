@@ -12,10 +12,9 @@
 //
 //  0. You just DO WHAT THE FUCK YOU WANT TO.
 
-use std::rc::Rc;
 use std::io::{Read, Write};
 
-use info::{self, capability as cap};
+use info::capability as cap;
 use error;
 use terminal::Terminal;
 
@@ -51,19 +50,17 @@ impl Default for Color {
 #[derive(Debug)]
 pub struct Text<'a, I: Read + 'a, O: Write + 'a> {
 	inner: &'a mut Terminal<I, O>,
-	info:  Rc<info::Database>,
 }
 
 impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 	pub fn new<'b: 'a>(inner: &'b mut Terminal<I, O>) -> Text<'b, I, O> {
 		Text {
-			info:  inner.database().clone(),
 			inner: inner,
 		}
 	}
 
 	pub fn default(&mut self) -> error::Result<&mut Self> {
-		expand!(&mut self.inner, cap!(self.info => ExitAttributeMode)?)?;
+		expand!(self.inner => ExitAttributeMode)?;
 
 		Ok(self)
 	}
@@ -75,19 +72,13 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			}
 
 			Weight::Bold => {
-				if let Ok(cap) = cap!(self.info => EnterBoldMode) {
-					expand!(&mut self.inner, cap)?;
-				}
-				else {
+				if expand!(self.inner => EnterBoldMode).is_err() {
 					self.inner.write(b"\x1B[1m")?;
 				}
 			}
 
 			Weight::Faint => {
-				if let Ok(cap) = cap!(self.info => EnterDimMode) {
-					expand!(&mut self.inner, cap)?;
-				}
-				else {
+				if expand!(self.inner => EnterDimMode).is_err() {
 					self.inner.write(b"\x1B[2m")?;
 				}
 			}
@@ -98,10 +89,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn reverse(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			if let Ok(cap) = cap!(self.info => EnterReverseMode) {
-				expand!(&mut self.inner, cap)?;
-			}
-			else {
+			if expand!(self.inner => EnterReverseMode).is_err() {
 				self.inner.write(b"\x1B[7m")?;
 			}
 		}
@@ -114,10 +102,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn blink(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			if let Ok(cap) = cap!(self.info => EnterBlinkMode) {
-				expand!(&mut self.inner, cap)?;
-			}
-			else {
+			if expand!(self.inner => EnterBlinkMode).is_err() {
 				self.inner.write(b"\x1B[5m")?;
 			}
 		}
@@ -130,10 +115,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn invisible(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			if let Ok(cap) = cap!(self.info => EnterSecureMode) {
-				expand!(&mut self.inner, cap)?;
-			}
-			else {
+			if expand!(self.inner => EnterSecureMode).is_err() {
 				self.inner.write(b"\x1B[8m")?;
 			}
 		}
@@ -146,10 +128,10 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn alternative(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			expand!(&mut self.inner, cap!(self.info => EnterAltCharsetMode)?)?;
+			expand!(self.inner => EnterAltCharsetMode)?;
 		}
 		else {
-			expand!(&mut self.inner, cap!(self.info => ExitAltCharsetMode)?)?;
+			expand!(self.inner => ExitAltCharsetMode)?;
 		}
 
 		Ok(self)
@@ -157,10 +139,10 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn italic(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			expand!(&mut self.inner, cap!(self.info => EnterItalicsMode)?)?;
+			expand!(self.inner => EnterItalicsMode)?;
 		}
 		else {
-			expand!(&mut self.inner, cap!(self.info => ExitItalicsMode)?)?;
+			expand!(self.inner => ExitItalicsMode)?;
 		}
 
 		Ok(self)
@@ -168,10 +150,10 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn standout(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			expand!(&mut self.inner, cap!(self.info => EnterStandoutMode)?)?;
+			expand!(self.inner => EnterStandoutMode)?;
 		}
 		else {
-			expand!(&mut self.inner, cap!(self.info => ExitStandoutMode)?)?;
+			expand!(self.inner => ExitStandoutMode)?;
 		}
 
 		Ok(self)
@@ -179,10 +161,10 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn underline(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			expand!(&mut self.inner, cap!(self.info => EnterUnderlineMode)?)?;
+			expand!(self.inner => EnterUnderlineMode)?;
 		}
 		else {
-			expand!(&mut self.inner, cap!(self.info => ExitUnderlineMode)?)?;
+			expand!(self.inner => ExitUnderlineMode)?;
 		}
 
 		Ok(self)
@@ -210,32 +192,25 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			}
 
 			Color::Index(id) if id < 8 => {
-				if let Ok(cap) = cap!(self.info => SetAForeground) {
-					expand!(&mut self.inner, cap; id)?
-				}
-				else if let Ok(cap) = cap!(self.info => SetForeground) {
-					expand!(&mut self.inner, cap; id)?
-				}
-				else {
-					match cap!(self.info => MaxColors) {
-						Ok(cap::MaxColors(n)) if n >= 8 => {
-							self.inner.write(format!("\x1B[3{}m", id).as_ref())?;
-						}
+				if expand!(self.inner => SetAForeground; id).is_err() {
+					if expand!(self.inner => SetForeground; id).is_err() {
+						match cap!(self.inner.database() => MaxColors) {
+							Ok(cap::MaxColors(n)) if n >= 8 => {
+								write!(self.inner, "\x1B[3{}m", id)?;
+							}
 
-						_ =>
-							return Err(error::Error::NotSupported)
+							_ =>
+								return Err(error::Error::NotSupported)
+						}
 					}
 				}
 			}
 
 			Color::Index(id) if id < 16 => {
-				match cap!(self.info => MaxColors) {
+				match cap!(self.inner.database() => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 16 =>
-						if let Ok(cap) = cap!(self.info => SetAForeground) {
-							expand!(&mut self.inner, cap; id)?;
-						}
-						else {
-							self.inner.write(format!("\x1B[9{}m", id - 8).as_ref())?;
+						if expand!(self.inner => SetAForeground; id).is_err() {
+							write!(self.inner, "\x1B[9{}m", id - 8)?;
 						},
 
 					_ =>
@@ -244,13 +219,10 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			}
 
 			Color::Index(id) => {
-				match cap!(self.info => MaxColors) {
+				match cap!(self.inner.database() => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 256 =>
-						if let Ok(cap) = cap!(self.info => SetAForeground) {
-							expand!(&mut self.inner, cap; id)?;
-						}
-						else {
-							self.inner.write(format!("\x1B[38;5;{}m", id).as_ref())?;
+						if expand!(self.inner => SetAForeground; id).is_err() {
+							write!(self.inner, "\x1B[38;5;{}m", id)?;
 						},
 
 					_ =>
@@ -259,11 +231,8 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			}
 
 			Color::Rgb(r, g, b) => {
-				if let Ok(cap) = cap!(self.info => SetTrueColorForeground) {
-					expand!(&mut self.inner, cap; r, g, b)?;
-				}
-				else {
-					self.inner.write(format!("\x1B[38;2;{};{};{}m", r, g, b).as_ref())?;
+				if expand!(self.inner => SetTrueColorForeground; r, g, b).is_err() {
+					write!(self.inner, "\x1B[38;2;{};{};{}m", r, g, b)?;
 				}
 			}
 
@@ -277,41 +246,33 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 	pub fn background<T: Into<Color>>(&mut self, value: T) -> error::Result<&mut Self> {
 		match value.into() {
 			Color::Default => {
-				self.inner.write(b"\x1B[49m")?;
+				write!(self.inner, "\x1B[49m")?;
 			}
 
 			Color::Transparent => {
-				self.inner.write(b"\x1B[48;1m")?;
+				write!(self.inner, "\x1B[48;1m")?;
 			}
 
 			Color::Index(id) if id < 8 => {
-				if let Ok(cap) = cap!(self.info => SetABackground) {
-					expand!(&mut self.inner, cap; id)?
-				}
-				else if let Ok(cap) = cap!(self.info => SetBackground) {
-					expand!(&mut self.inner, cap; id)?
-				}
-				else {
-					match cap!(self.info => MaxColors) {
-						Ok(cap::MaxColors(n)) if n >= 8 => {
-							self.inner.write(format!("\x1B[4{}m", id).as_ref())?;
-						}
+				if expand!(self.inner => SetABackground; id).is_err() {
+					if expand!(self.inner => SetBackground; id).is_err() {
+						match cap!(self.inner.database() => MaxColors) {
+							Ok(cap::MaxColors(n)) if n >= 8 => {
+								write!(self.inner, "\x1B[4{}m", id)?;
+							}
 
-						_ =>
-							return Err(error::Error::NotSupported)
+							_ =>
+								return Err(error::Error::NotSupported)
+						}
 					}
 				}
-
 			}
 
 			Color::Index(id) if id < 16 => {
-				match cap!(self.info => MaxColors) {
+				match cap!(self.inner.database() => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 16 =>
-						if let Ok(cap) = cap!(self.info => SetABackground) {
-							expand!(&mut self.inner, cap; id)?;
-						}
-						else {
-							self.inner.write(format!("\x1B[10{}m", id - 8).as_ref())?;
+						if expand!(self.inner => SetABackground; id).is_err() {
+							write!(self.inner, "\x1B[10{}m", id - 8)?;
 						},
 
 					_ =>
@@ -320,13 +281,10 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			}
 
 			Color::Index(id) => {
-				match cap!(self.info => MaxColors) {
+				match cap!(self.inner.database() => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 256 =>
-						if let Ok(cap) = cap!(self.info => SetABackground) {
-							expand!(&mut self.inner, cap; id)?;
-						}
-						else {
-							self.inner.write(format!("\x1B[48;5;{}m", id).as_ref())?;
+						if expand!(self.inner => SetABackground; id).is_err() {
+							write!(self.inner, "\x1B[48;5;{}m", id)?;
 						},
 
 					_ =>
@@ -335,11 +293,8 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			}
 
 			Color::Rgb(r, g, b) => {
-				if let Ok(cap) = cap!(self.info => SetTrueColorBackground) {
-					expand!(&mut self.inner, cap; r, g, b)?;
-				}
-				else {
-					self.inner.write(format!("\x1B[48;2;{};{};{}m", r, g, b).as_ref())?;
+				if expand!(self.inner => SetTrueColorBackground; r, g, b).is_err() {
+					write!(self.inner, "\x1B[48;2;{};{};{}m", r, g, b)?;
 				}
 			}
 

@@ -25,7 +25,6 @@ extern crate termios;
 pub extern crate control_code;
 pub use control_code as control;
 
-#[macro_use(expand)]
 pub extern crate terminfo;
 pub use terminfo as info;
 

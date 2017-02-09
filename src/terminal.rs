@@ -12,7 +12,6 @@
 //
 //  0. You just DO WHAT THE FUCK YOU WANT TO.
 
-use std::rc::Rc;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::io::{self, Read, Write, Stdin, Stdout};
 use std::os::unix::io::{AsRawFd, RawFd};
@@ -45,11 +44,13 @@ pub struct Terminal<I: Read = Stdin, O: Write = Stdout> {
 
 	input:  Option<I>,
 	events: Option<chan::Receiver<Event>>,
+	keys:   Arc<Mutex<Keys>>,
 
-	database: Rc<info::Database>,
-	initial:  Termios,
-	keys:     Arc<Mutex<Keys>>,
-	resizer:  Option<u32>,
+	database: info::Database,
+	context:  info::expand::Context,
+
+	initial: Termios,
+	resizer: Option<u32>,
 }
 
 pub type Default = Terminal<Stdin, Stdout>;
@@ -63,7 +64,7 @@ impl Terminal<Stdin, Stdout> {
 			}
 		}
 
-		let info  = Rc::new(info::Database::from_env()?);
+		let info  = info::Database::from_env()?;
 		let state = Termios::from_fd(STDOUT_FILENO)?;
 		let keys  = Arc::new(Mutex::new(Keys::new(&info)));
 
@@ -73,11 +74,13 @@ impl Terminal<Stdin, Stdout> {
 
 			input:  Some(io::stdin()),
 			events: None,
+			keys:   keys,
 
 			database: info,
-			initial:  state,
-			keys:     keys,
-			resizer:  None,
+			context:  info::expand::Context::default(),
+
+			initial: state,
+			resizer: None,
 		}.setup()
 	}
 }
@@ -91,7 +94,7 @@ impl<I: Read + AsRawFd, O: Write + AsRawFd> Terminal<I, O> {
 			}
 
 			let tty   = output.as_raw_fd();
-			let info  = Rc::new(info::Database::from_env()?);
+			let info  = info::Database::from_env()?;
 			let state = Termios::from_fd(tty)?;
 			let keys  = Arc::new(Mutex::new(Keys::new(&info)));
 
@@ -101,11 +104,13 @@ impl<I: Read + AsRawFd, O: Write + AsRawFd> Terminal<I, O> {
 
 				input:  Some(input),
 				events: None,
+				keys:   keys,
 
 				database: info,
-				initial:  state,
-				keys:     keys,
-				resizer:  None,
+				context:  info::expand::Context::default(),
+
+				initial: state,
+				resizer: None,
 			}.setup()
 		}
 	}
@@ -135,13 +140,20 @@ impl<I: Read, O: Write> Terminal<I, O> {
 }
 
 impl<I: Read, O: Write> Terminal<I, O> {
+	/// Run an expansion.
+	pub fn expansion<T, F>(&mut self, f: F) -> error::Result<T>
+		where F: FnOnce(&info::Database, &mut info::expand::Context, &mut O) -> error::Result<T>
+	{
+		f(&self.database, &mut self.context, &mut self.output)
+	}
+
 	/// Get the key handler.
 	pub fn keys(&mut self) -> MutexGuard<Keys> {
 		self.keys.lock().unwrap()
 	}
 
 	/// Get the terminal capability database.
-	pub fn database(&self) -> &Rc<info::Database> {
+	pub fn database(&self) -> &info::Database {
 		&self.database
 	}
 

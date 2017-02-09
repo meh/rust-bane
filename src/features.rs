@@ -12,28 +12,25 @@
 //
 //  0. You just DO WHAT THE FUCK YOU WANT TO.
 
-use std::rc::Rc;
 use std::io::{Read, Write};
 use std::os::unix::io::AsRawFd;
 
 use termios::{Termios, tcsetattr};
 use termios::{ICANON, ECHO, TCSANOW, IEXTEN, ISIG, IXOFF, IXON, VMIN, VTIME};
 
-use info::{self, capability as cap};
+use info::capability as cap;
 use error;
 use terminal::Terminal;
 
 #[derive(Debug)]
 pub struct Features<'a, I: Read + 'a, O: Write + 'a> {
 	inner: &'a mut Terminal<I, O>,
-	info:  Rc<info::Database>,
 	state: Termios,
 }
 
 impl<'a, I: Read + 'a, O: Write + 'a> Features<'a, I, O> {
 	pub fn new<'b: 'a>(inner: &'b mut Terminal<I, O>) -> Features<'b, I, O> {
 		Features {
-			info:  inner.database().clone(),
 			state: Termios::from_fd(inner.as_raw_fd()).unwrap(),
 			inner: inner,
 		}
@@ -42,10 +39,10 @@ impl<'a, I: Read + 'a, O: Write + 'a> Features<'a, I, O> {
 	/// Get the number of colors, `None` signifies no limit, usually due to true
 	/// color support.
 	pub fn colors(&self) -> Option<i16> {
-		if let Ok(_) = cap!(self.info => TrueColor) {
+		if let Ok(_) = cap!(self.inner.database() => TrueColor) {
 			None
 		}
-		else if let Ok(cap::MaxColors(n)) = cap!(self.info => MaxColors) {
+		else if let Ok(cap::MaxColors(n)) = cap!(self.inner.database() => MaxColors) {
 			Some(n)
 		}
 		else {

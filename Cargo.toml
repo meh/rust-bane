@@ -17,6 +17,6 @@ bitflags    = "0.7"
 fnv         = "1.0"
 
 control-code = "0.6.3"
-terminfo     = "0.2"
+terminfo     = "0.3"
 termios      = "0.2"
 

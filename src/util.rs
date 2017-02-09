@@ -17,3 +17,16 @@ macro_rules! cap {
 		$db.get::<$crate::info::capability::$name>().ok_or($crate::Error::NotSupported)
 	);
 }
+
+macro_rules! expand {
+	($term:expr => $name:ident) => (
+		expand!($term => $name;)
+	);
+
+	($term:expr => $name:ident; $($params:expr),*) => (
+		$term.expansion(|info, context, output| {
+			cap!(info => $name)?.expand($($params),*).with(context).to(output)?;
+			Ok(())
+		})
+	);
+}
