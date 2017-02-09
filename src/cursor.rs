@@ -107,9 +107,9 @@ impl<'a, I: Read + 'a, O: Write + 'a> Cursor<'a, I, O> {
 				},
 
 			Travel::To(Some(x), Some(y)) =>
-				if expand!(self.inner => CursorAddress; x, y).is_err() {
-					expand!(self.inner => ColumnAddress; x)?;
+				if expand!(self.inner => CursorAddress; y, x).is_err() {
 					expand!(self.inner => RowAddress; y)?;
+					expand!(self.inner => ColumnAddress; x)?;
 				},
 
 			Travel::To(Some(x), None) =>
