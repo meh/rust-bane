@@ -33,6 +33,7 @@ use keys::{Key, Keys};
 pub enum Event {
 	Close,
 	Resize,
+	Focus(bool),
 	Paste(Vec<u8>),
 	Key(Key),
 }
@@ -128,9 +129,9 @@ impl<I: Read, O: Write> Terminal<I, O> {
 		control::format_to(&mut self.output,
 			&DEC::ApplicationKeypad(true), false)?;
 
-		// Enable bracketed paste and mouse support.
+		// Enable bracketed paste, focus notification, mouse support.
 		control::format_to(&mut self.output,
-			&CSI::Private(b'h', None, CSI::args(&[2004, 1006])), false)?;
+			&CSI::Private(b'h', None, CSI::args(&[2004, 1004, 1006])), false)?;
 
 		// Commit the changes.
 		self.output.flush()?;
@@ -237,6 +238,14 @@ impl<I: Read + Send + 'static, O: Write> Terminal<I, O> {
 								input = &current[b"\x1B[201~".len() ..];
 								sender.send(Event::Paste(result));
 							}
+						}
+						else if input.starts_with(b"\x1B[I") {
+							sender.send(Event::Focus(true));
+							input = &input[b"\x1B[I".len() ..];
+						}
+						else if input.starts_with(b"\x1B[O") {
+							sender.send(Event::Focus(false));
+							input = &input[b"\x1B[O".len() ..];
 						}
 						else {
 							let (rest, key) = keys.lock().unwrap().find(input);
