@@ -82,7 +82,7 @@ impl Terminal<Stdin, Stdout> {
 
 			initial: state,
 			resizer: None,
-		}.setup()
+		}.init()
 	}
 }
 
@@ -112,13 +112,13 @@ impl<I: Read + AsRawFd, O: Write + AsRawFd> Terminal<I, O> {
 
 				initial: state,
 				resizer: None,
-			}.setup()
+			}.init()
 		}
 	}
 }
 
 impl<I: Read, O: Write> Terminal<I, O> {
-	fn setup(mut self) -> error::Result<Self> {
+	fn init(mut self) -> error::Result<Self> {
 		use control::{self, CSI, DEC};
 
 		// Enable application cursor.
@@ -132,6 +132,27 @@ impl<I: Read, O: Write> Terminal<I, O> {
 		// Enable bracketed paste, focus notification, mouse support.
 		control::format_to(&mut self.output,
 			&CSI::Private(b'h', None, CSI::args(&[2004, 1004, 1006])), false)?;
+
+		// Commit the changes.
+		self.output.flush()?;
+
+		Ok(self)
+	}
+
+	fn deinit(&mut self) -> error::Result<&mut Self> {
+		use control::{self, CSI, DEC};
+
+		// Disable application cursor.
+		control::format_to(&mut self.output,
+			&DEC::Reset(CSI::values(&[DEC::Mode::ApplicationCursor])), false)?;
+
+		// Disable application keypad.
+		control::format_to(&mut self.output,
+			&DEC::ApplicationKeypad(false), false)?;
+
+		// Disable bracketed paste, focus notification, mouse support.
+		control::format_to(&mut self.output,
+			&CSI::Private(b'l', None, CSI::args(&[2004, 1004, 1006])), false)?;
 
 		// Commit the changes.
 		self.output.flush()?;
@@ -310,6 +331,7 @@ impl<I: Read, O: Write> Drop for Terminal<I, O> {
 			resize::unregister(id);
 		}
 
+		let _ = self.deinit();
 		let _ = tcsetattr(self.tty, TCSANOW, &self.initial);
 	}
 }
