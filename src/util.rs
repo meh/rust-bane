@@ -19,13 +19,29 @@ macro_rules! cap {
 }
 
 macro_rules! expand {
-	($term:expr => $name:ident) => (
-		expand!($term => $name;)
+	(? $term:expr => $capability:ident) => (
+		expand!(? $term => $capability;)
 	);
 
-	($term:expr => $name:ident; $($params:expr),*) => (
+	(? $term:expr => $capability:ident; $($name:ident : $value:expr),*) => (
 		$term.expansion(|info, context, output| {
-			cap!(info => $name)?.expand($($params),*).with(context).to(output)?;
+			if let Ok(cap) = cap!(info => $capability) {
+				cap.expand()$(.$name($value))*.with(context).to(output)?;
+				Ok(false)
+			}
+			else {
+				Ok(true)
+			}
+		})
+	);
+
+	($term:expr => $capability:ident) => (
+		expand!($term => $capability;)
+	);
+
+	($term:expr => $capability:ident; $($name:ident : $value:expr),*) => (
+		$term.expansion(|info, context, output| {
+			cap!(info => $capability)?.expand()$(.$name($value))*.with(context).to(output)?;
 			Ok(())
 		})
 	);

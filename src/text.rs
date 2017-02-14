@@ -72,13 +72,13 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			}
 
 			Weight::Bold => {
-				if expand!(self.inner => EnterBoldMode).is_err() {
+				if expand!(? self.inner => EnterBoldMode)? {
 					self.inner.write(b"\x1B[1m")?;
 				}
 			}
 
 			Weight::Faint => {
-				if expand!(self.inner => EnterDimMode).is_err() {
+				if expand!(? self.inner => EnterDimMode)? {
 					self.inner.write(b"\x1B[2m")?;
 				}
 			}
@@ -89,7 +89,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn reverse(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			if expand!(self.inner => EnterReverseMode).is_err() {
+			if expand!(? self.inner => EnterReverseMode)? {
 				self.inner.write(b"\x1B[7m")?;
 			}
 		}
@@ -102,7 +102,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn blink(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			if expand!(self.inner => EnterBlinkMode).is_err() {
+			if expand!(? self.inner => EnterBlinkMode)? {
 				self.inner.write(b"\x1B[5m")?;
 			}
 		}
@@ -115,7 +115,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 
 	pub fn invisible(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
-			if expand!(self.inner => EnterSecureMode).is_err() {
+			if expand!(? self.inner => EnterSecureMode)? {
 				self.inner.write(b"\x1B[8m")?;
 			}
 		}
@@ -192,8 +192,8 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			}
 
 			Color::Index(id) if id < 8 => {
-				if expand!(self.inner => SetAForeground; id).is_err() {
-					if expand!(self.inner => SetForeground; id).is_err() {
+				if expand!(? self.inner => SetAForeground; color: id)? {
+					if expand!(? self.inner => SetForeground; color: id)? {
 						match cap!(self.inner.database() => MaxColors) {
 							Ok(cap::MaxColors(n)) if n >= 8 => {
 								write!(self.inner, "\x1B[3{}m", id)?;
@@ -209,7 +209,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			Color::Index(id) if id < 16 => {
 				match cap!(self.inner.database() => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 16 =>
-						if expand!(self.inner => SetAForeground; id).is_err() {
+						if expand!(? self.inner => SetAForeground; color: id)? {
 							write!(self.inner, "\x1B[9{}m", id - 8)?;
 						},
 
@@ -221,7 +221,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			Color::Index(id) => {
 				match cap!(self.inner.database() => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 256 =>
-						if expand!(self.inner => SetAForeground; id).is_err() {
+						if expand!(? self.inner => SetAForeground; color: id)? {
 							write!(self.inner, "\x1B[38;5;{}m", id)?;
 						},
 
@@ -231,7 +231,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			}
 
 			Color::Rgb(r, g, b) => {
-				if expand!(self.inner => SetTrueColorForeground; r, g, b).is_err() {
+				if expand!(? self.inner => SetTrueColorForeground; r: r, g: g, b: b)? {
 					write!(self.inner, "\x1B[38;2;{};{};{}m", r, g, b)?;
 				}
 			}
@@ -254,8 +254,8 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			}
 
 			Color::Index(id) if id < 8 => {
-				if expand!(self.inner => SetABackground; id).is_err() {
-					if expand!(self.inner => SetBackground; id).is_err() {
+				if expand!(? self.inner => SetABackground; color: id)? {
+					if expand!(? self.inner => SetBackground; color: id)? {
 						match cap!(self.inner.database() => MaxColors) {
 							Ok(cap::MaxColors(n)) if n >= 8 => {
 								write!(self.inner, "\x1B[4{}m", id)?;
@@ -271,7 +271,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			Color::Index(id) if id < 16 => {
 				match cap!(self.inner.database() => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 16 =>
-						if expand!(self.inner => SetABackground; id).is_err() {
+						if expand!(? self.inner => SetABackground; color: id)? {
 							write!(self.inner, "\x1B[10{}m", id - 8)?;
 						},
 
@@ -283,7 +283,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			Color::Index(id) => {
 				match cap!(self.inner.database() => MaxColors) {
 					Ok(cap::MaxColors(n)) if n >= 256 =>
-						if expand!(self.inner => SetABackground; id).is_err() {
+						if expand!(? self.inner => SetABackground; color: id)? {
 							write!(self.inner, "\x1B[48;5;{}m", id)?;
 						},
 
@@ -293,7 +293,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 			}
 
 			Color::Rgb(r, g, b) => {
-				if expand!(self.inner => SetTrueColorBackground; r, g, b).is_err() {
+				if expand!(? self.inner => SetTrueColorBackground; r: r, g: g, b: b)? {
 					write!(self.inner, "\x1B[48;2;{};{};{}m", r, g, b)?;
 				}
 			}

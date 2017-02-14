@@ -59,64 +59,64 @@ impl<'a, I: Read + 'a, O: Write + 'a> Cursor<'a, I, O> {
 	pub fn travel(&mut self, value: Travel) -> error::Result<&mut Self> {
 		match value {
 			Travel::Up(n) if n == 1 =>
-				if expand!(self.inner => CursorUp).is_err() {
-					expand!(self.inner => ParmUpCursor; 1)?;
+				if expand!(? self.inner => CursorUp)? {
+					expand!(self.inner => ParmUpCursor; count: 1)?;
 				},
 
 			Travel::Up(n) =>
-				if expand!(self.inner => ParmUpCursor; n).is_err() {
+				if expand!(? self.inner => ParmUpCursor; count: n)? {
 					for _ in 0 .. n {
 						expand!(self.inner => CursorUp)?;
 					}
 				},
 
 			Travel::Down(n) if n == 1 =>
-				if expand!(self.inner => CursorDown).is_err() {
-					expand!(self.inner => ParmDownCursor; 1)?;
+				if expand!(? self.inner => CursorDown)? {
+					expand!(self.inner => ParmDownCursor; count: 1)?;
 				},
 
 			Travel::Down(n) =>
-				if expand!(self.inner => ParmDownCursor; n).is_err() {
+				if expand!(? self.inner => ParmDownCursor; count: n)? {
 					for _ in 0 .. n {
 						expand!(self.inner => CursorDown)?;
 					}
 				},
 
 			Travel::Left(n) if n == 1 =>
-				if expand!(self.inner => CursorLeft).is_err() {
-					expand!(self.inner => ParmLeftCursor; 1)?;
+				if expand!(? self.inner => CursorLeft)? {
+					expand!(self.inner => ParmLeftCursor; count: 1)?;
 				},
 
 			Travel::Left(n) =>
-				if expand!(self.inner => ParmLeftCursor; n).is_err() {
+				if expand!(? self.inner => ParmLeftCursor; count: n)? {
 					for _ in 0 .. n {
 						expand!(self.inner => CursorLeft)?;
 					}
 				},
 
 			Travel::Right(n) if n == 1 =>
-				if expand!(self.inner => CursorRight).is_err() {
-					expand!(self.inner => ParmRightCursor; 1)?;
+				if expand!(? self.inner => CursorRight)? {
+					expand!(self.inner => ParmRightCursor; count: 1)?;
 				},
 
 			Travel::Right(n) =>
-				if expand!(self.inner => ParmRightCursor; n).is_err() {
+				if expand!(? self.inner => ParmRightCursor; count: n)? {
 					for _ in 0 .. n {
 						expand!(self.inner => CursorRight)?;
 					}
 				},
 
 			Travel::To(Some(x), Some(y)) =>
-				if expand!(self.inner => CursorAddress; y, x).is_err() {
-					expand!(self.inner => RowAddress; y)?;
-					expand!(self.inner => ColumnAddress; x)?;
+				if expand!(? self.inner => CursorAddress; x: x, y: y)? {
+					expand!(self.inner => RowAddress; y: y)?;
+					expand!(self.inner => ColumnAddress; x: x)?;
 				},
 
 			Travel::To(Some(x), None) =>
-				expand!(self.inner => ColumnAddress; x)?,
+				expand!(self.inner => ColumnAddress; x: x)?,
 
 			Travel::To(None, Some(y)) =>
-				expand!(self.inner => RowAddress; y)?,
+				expand!(self.inner => RowAddress; y: y)?,
 
 			Travel::To(None, None) =>
 				(),
