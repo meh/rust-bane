@@ -123,15 +123,15 @@ impl<I: Read, O: Write> Terminal<I, O> {
 
 		// Enable application cursor.
 		control::format_to(&mut self.output,
-			&DEC::Set(CSI::values(&[DEC::Mode::ApplicationCursor])), false)?;
+			&DEC::Set(CSI::values(&[DEC::Mode::ApplicationCursor])))?;
 
 		// Enable application keypad.
 		control::format_to(&mut self.output,
-			&DEC::ApplicationKeypad(true), false)?;
+			&DEC::ApplicationKeypad(true))?;
 
 		// Enable bracketed paste, focus notification, mouse support.
 		control::format_to(&mut self.output,
-			&CSI::Private(b'h', None, CSI::args(&[2004, 1004, 1006])), false)?;
+			&CSI::Private(b'h', None, CSI::args(&[2004, 1004, 1006])))?;
 
 		// Commit the changes.
 		self.output.flush()?;
@@ -144,15 +144,15 @@ impl<I: Read, O: Write> Terminal<I, O> {
 
 		// Disable application cursor.
 		control::format_to(&mut self.output,
-			&DEC::Reset(CSI::values(&[DEC::Mode::ApplicationCursor])), false)?;
+			&DEC::Reset(CSI::values(&[DEC::Mode::ApplicationCursor])))?;
 
 		// Disable application keypad.
 		control::format_to(&mut self.output,
-			&DEC::ApplicationKeypad(false), false)?;
+			&DEC::ApplicationKeypad(false))?;
 
 		// Disable bracketed paste, focus notification, mouse support.
 		control::format_to(&mut self.output,
-			&CSI::Private(b'l', None, CSI::args(&[2004, 1004, 1006])), false)?;
+			&CSI::Private(b'l', None, CSI::args(&[2004, 1004, 1006])))?;
 
 		// Commit the changes.
 		self.output.flush()?;

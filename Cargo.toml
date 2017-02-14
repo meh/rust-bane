@@ -16,6 +16,6 @@ lazy_static = "0.2"
 bitflags    = "0.7"
 fnv         = "1.0"
 
-control-code = "0.6.3"
+control-code = "0.7"
 terminfo     = "0.4"
 termios      = "0.2"
