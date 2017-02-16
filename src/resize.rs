@@ -39,7 +39,11 @@ unsafe extern "C" fn handler(num: c_int) {
 	}
 }
 
-pub fn register(sender: chan::Sender<Event>) -> u32 {
+#[derive(Debug)]
+pub struct Handler(u32);
+
+/// Register a new resize handler.
+pub fn register(sender: chan::Sender<Event>) -> Handler {
 	let mut guard = SUBSCRIBERS.lock().unwrap();
 	let     id    = guard.0 + 1;
 
@@ -56,9 +60,10 @@ pub fn register(sender: chan::Sender<Event>) -> u32 {
 	guard.0 = id;
 	guard.1.insert(id, sender);
 
-	id
+	Handler(id)
 }
 
-pub fn unregister(id: u32) {
-	SUBSCRIBERS.lock().unwrap().1.remove(&id);
+/// Unregister the given handler.
+pub fn unregister(id: Handler) {
+	SUBSCRIBERS.lock().unwrap().1.remove(&id.0);
 }

@@ -26,7 +26,7 @@ use termios::{Termios, tcsetattr, TCSANOW};
 use size::{self, Size};
 use error::{self, Error};
 use {Features, Cursor, Screen, Erase, Text};
-use {resize};
+use resize;
 use keys::{Key, Keys};
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -51,7 +51,7 @@ pub struct Terminal<I: Read = Stdin, O: Write = Stdout> {
 	context:  info::expand::Context,
 
 	initial: Termios,
-	resizer: Option<u32>,
+	resizer: Option<resize::Handler>,
 }
 
 pub type Default = Terminal<Stdin, Stdout>;
@@ -327,7 +327,7 @@ impl<I: Read, O: Write> Read for Terminal<I, O> {
 
 impl<I: Read, O: Write> Drop for Terminal<I, O> {
 	fn drop(&mut self) {
-		if let Some(id) = self.resizer {
+		if let Some(id) = self.resizer.take() {
 			resize::unregister(id);
 		}
 
