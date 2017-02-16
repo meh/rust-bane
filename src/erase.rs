@@ -17,6 +17,7 @@ use std::io::{Read, Write};
 use error;
 use terminal::Terminal;
 
+/// Edge to erase to.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum To {
 	Start,
@@ -29,31 +30,42 @@ pub struct Erase<'a, I: Read + 'a, O: Write + 'a> {
 }
 
 impl<'a, I: Read + 'a, O: Write + 'a> Erase<'a, I, O> {
+	#[doc(hidden)]
 	pub fn new<'b: 'a>(inner: &'b mut Terminal<I, O>) -> Erase<'b, I, O> {
 		Erase {
 			inner: inner,
 		}
 	}
 
-	pub fn line(&mut self, value: To) -> error::Result<&mut Self> {
+	/// Erase the line.
+	pub fn line(&mut self, value: Option<To>) -> error::Result<&mut Self> {
 		match value {
-			To::Start =>
+			None => {
+				expand!(self.inner => ClrBol)?;
+				expand!(self.inner => ClrEol)?;
+			}
+
+			Some(To::Start) =>
 				expand!(self.inner => ClrBol)?,
 
-			To::End =>
+			Some(To::End) =>
 				expand!(self.inner => ClrEol)?,
 		}
 
 		Ok(self)
 	}
 
-	pub fn screen(&mut self, value: To) -> error::Result<&mut Self> {
+	/// Erase the display.
+	pub fn screen(&mut self, value: Option<To>) -> error::Result<&mut Self> {
 		match value {
-			To::Start =>
-				return Err(error::Error::NotSupported),
+			None =>
+				expand!(self.inner => ClearScreen)?,
 
-			To::End =>
+			Some(To::End) =>
 				expand!(self.inner => ClrEos)?,
+
+			Some(To::Start) =>
+				return Err(error::Error::NotSupported),
 		}
 
 		Ok(self)

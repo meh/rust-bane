@@ -41,9 +41,6 @@ pub use size::{get as size, Size};
 mod features;
 pub use features::Features;
 
-mod screen;
-pub use screen::Screen;
-
 pub mod erase;
 pub use erase::Erase;
 
