@@ -137,6 +137,9 @@ impl<I: Read, O: Write> Terminal<I, O> {
 		// Commit the changes.
 		self.output.flush()?;
 
+		// Disable echo and enable raw mode.
+		self.features().echo(false)?.raw(true)?;
+
 		Ok(self)
 	}
 
