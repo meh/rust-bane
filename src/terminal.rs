@@ -118,6 +118,7 @@ impl<I: Read + AsRawFd, O: Write + AsRawFd> Terminal<I, O> {
 }
 
 impl<I: Read, O: Write> Terminal<I, O> {
+	/// Initialize with the default terminal features.
 	fn init(mut self) -> error::Result<Self> {
 		use control::{self, CSI, DEC};
 
@@ -139,6 +140,7 @@ impl<I: Read, O: Write> Terminal<I, O> {
 		Ok(self)
 	}
 
+	/// Reset the default terminal features.
 	fn deinit(&mut self) -> error::Result<&mut Self> {
 		use control::{self, CSI, DEC};
 

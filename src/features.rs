@@ -29,6 +29,7 @@ pub struct Features<'a, I: Read + 'a, O: Write + 'a> {
 }
 
 impl<'a, I: Read + 'a, O: Write + 'a> Features<'a, I, O> {
+	#[doc(hidden)]
 	pub fn new<'b: 'a>(inner: &'b mut Terminal<I, O>) -> Features<'b, I, O> {
 		Features {
 			state: Termios::from_fd(inner.as_raw_fd()).unwrap(),

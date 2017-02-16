@@ -39,6 +39,7 @@ unsafe extern "C" fn handler(num: c_int) {
 	}
 }
 
+/// A registered resize handler.
 #[derive(Debug)]
 pub struct Handler(u32);
 

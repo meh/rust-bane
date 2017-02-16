@@ -18,6 +18,7 @@ use info::capability as cap;
 use error;
 use terminal::Terminal;
 
+/// The font weight.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Weight {
 	Default,
@@ -31,6 +32,7 @@ impl Default for Weight {
 	}
 }
 
+/// The font color.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Color {
 	Default,
@@ -53,18 +55,21 @@ pub struct Text<'a, I: Read + 'a, O: Write + 'a> {
 }
 
 impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
+	#[doc(hidden)]
 	pub fn new<'b: 'a>(inner: &'b mut Terminal<I, O>) -> Text<'b, I, O> {
 		Text {
 			inner: inner,
 		}
 	}
 
+	/// Reset all attributes.
 	pub fn default(&mut self) -> error::Result<&mut Self> {
 		expand!(self.inner => ExitAttributeMode)?;
 
 		Ok(self)
 	}
 
+	/// Change the font weight.
 	pub fn weight(&mut self, value: Weight) -> error::Result<&mut Self> {
 		match value {
 			Weight::Default => {
@@ -87,6 +92,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	/// Change reverse mode.
 	pub fn reverse(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
 			if expand!(? self.inner => EnterReverseMode)? {
@@ -100,6 +106,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	/// Change blink mode.
 	pub fn blink(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
 			if expand!(? self.inner => EnterBlinkMode)? {
@@ -113,6 +120,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	/// Change invisible mode.
 	pub fn invisible(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
 			if expand!(? self.inner => EnterSecureMode)? {
@@ -126,6 +134,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	/// Change the charset.
 	pub fn alternative(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
 			expand!(self.inner => EnterAltCharsetMode)?;
@@ -137,6 +146,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	/// Change italic mode.
 	pub fn italic(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
 			expand!(self.inner => EnterItalicsMode)?;
@@ -148,6 +158,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	/// Change standout mode.
 	pub fn standout(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
 			expand!(self.inner => EnterStandoutMode)?;
@@ -159,6 +170,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	/// Change underline mode.
 	pub fn underline(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
 			expand!(self.inner => EnterUnderlineMode)?;
@@ -170,6 +182,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	/// Change strike-through mode.
 	pub fn struck(&mut self, value: bool) -> error::Result<&mut Self> {
 		if value {
 			self.inner.write(b"\x1B[9m")?;
@@ -181,6 +194,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	/// Change the foreground color.
 	pub fn foreground<T: Into<Color>>(&mut self, value: T) -> error::Result<&mut Self> {
 		match value.into() {
 			Color::Default => {
@@ -243,6 +257,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	/// Change the background color.
 	pub fn background<T: Into<Color>>(&mut self, value: T) -> error::Result<&mut Self> {
 		match value.into() {
 			Color::Default => {
@@ -305,6 +320,7 @@ impl<'a, I: Read + 'a, O: Write + 'a> Text<'a, I, O> {
 		Ok(self)
 	}
 
+	/// Write the given text.
 	pub fn write<T: AsRef<str>>(&mut self, value: T) -> error::Result<&mut Self> {
 		self.inner.write(value.as_ref().as_ref())?;
 

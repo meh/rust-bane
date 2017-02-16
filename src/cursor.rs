@@ -22,6 +22,7 @@ pub struct Cursor<'a, I: Read + 'a, O: Write + 'a> {
 	inner: &'a mut Terminal<I, O>
 }
 
+/// Cursor movements.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Travel {
 	Up(u32),
@@ -32,30 +33,35 @@ pub enum Travel {
 }
 
 impl<'a, I: Read + 'a, O: Write + 'a> Cursor<'a, I, O> {
+	#[doc(hidden)]
 	pub fn new<'b: 'a>(inner: &'b mut Terminal<I, O>) -> Cursor<'b, I, O> {
 		Cursor {
 			inner: inner,
 		}
 	}
 
+	/// Make the cursor invisible.
 	pub fn invisible(&mut self) -> error::Result<&mut Self> {
 		expand!(self.inner => CursorInvisible)?;
 
 		Ok(self)
 	}
 
+	/// Make the cursor normal.
 	pub fn normal(&mut self) -> error::Result<&mut Self> {
 		expand!(self.inner => CursorNormal)?;
 
 		Ok(self)
 	}
 
+	/// Make the cursor very visible.
 	pub fn visible(&mut self) -> error::Result<&mut Self> {
 		expand!(self.inner => CursorVisible)?;
 
 		Ok(self)
 	}
 
+	/// Move the cursor.
 	pub fn travel(&mut self, value: Travel) -> error::Result<&mut Self> {
 		match value {
 			Travel::Up(n) if n == 1 =>
