@@ -38,8 +38,8 @@ impl<'a, I: Read + 'a, O: Write + 'a> Erase<'a, I, O> {
 	}
 
 	/// Erase the line.
-	pub fn line(&mut self, value: Option<To>) -> error::Result<&mut Self> {
-		match value {
+	pub fn line<T: Into<Option<To>>>(&mut self, value: T) -> error::Result<&mut Self> {
+		match value.into() {
 			None => {
 				expand!(self.inner => ClrBol)?;
 				expand!(self.inner => ClrEol)?;
@@ -56,8 +56,8 @@ impl<'a, I: Read + 'a, O: Write + 'a> Erase<'a, I, O> {
 	}
 
 	/// Erase the display.
-	pub fn screen(&mut self, value: Option<To>) -> error::Result<&mut Self> {
-		match value {
+	pub fn screen<T: Into<Option<To>>>(&mut self, value: T) -> error::Result<&mut Self> {
+		match value.into() {
 			None =>
 				expand!(self.inner => ClearScreen)?,
 
