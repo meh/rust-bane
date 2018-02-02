@@ -29,12 +29,12 @@ pub struct Key {
 }
 
 bitflags! {
-	pub flags Modifier: u8 {
-		const NONE  = 0,
-		const ALT   = 1 << 0,
-		const CTRL  = 1 << 1,
-		const LOGO  = 1 << 2,
-		const SHIFT = 1 << 3,
+	pub struct Modifier: u8 {
+		const NONE  = 0;
+		const ALT   = 1 << 0;
+		const CTRL  = 1 << 1;
+		const LOGO  = 1 << 2;
+		const SHIFT = 1 << 3;
 	}
 }
 
@@ -182,7 +182,7 @@ impl Keys {
 				($string:expr => $value:expr; $($mods:ident)|+) => (
 					map.entry($string.len()).or_insert(HashMap::default())
 						.entry($string.to_vec()).or_insert(Key {
-							modifier: $($mods)|+,
+							modifier: $(Modifier::$mods)|+,
 							value:    $value,
 						});
 				);
@@ -359,7 +359,7 @@ impl Keys {
 	pub fn unbind<T: AsRef<[u8]>>(&mut self, value: T) -> &mut Self {
 		let value = value.as_ref();
 
-		if let Some(mut map) = self.0.get_mut(&value.len()) {
+		if let Some(map) = self.0.get_mut(&value.len()) {
 			map.remove(value);
 		}
 
@@ -389,14 +389,14 @@ impl Keys {
 		let mut mods = Modifier::empty();
 
 		if input[0] == 0x1B {
-			mods.insert(ALT);
+			mods.insert(Modifier::ALT);
 			input = &input[1..];
 		}
 
 		// Check if it's a control character.
 		if input[0] & 0b011_00000 == 0 {
 			return (&input[1..], Some(Key {
-				modifier: mods | CTRL,
+				modifier: mods | Modifier::CTRL,
 				value:    Char((input[0] | 0b010_00000) as char),
 			}));
 		}
