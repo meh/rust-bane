@@ -100,11 +100,11 @@ impl Keys {
 			insert!(KeyLeft => Left);
 			insert!(KeyRight => Right);
 
-			insert!(KeyNpage => PageDown);
-			insert!(KeyPpage => PageUp);
+			insert!(KeyNPage => PageDown);
+			insert!(KeyPPage => PageUp);
 
 			insert!(KeyBackspace => BackSpace);
-			insert!(KeyBtab => BackTab);
+			insert!(KeyBTab => BackTab);
 			insert!(Tab => Tab);
 
 			insert!(KeyF1  => F(1));
