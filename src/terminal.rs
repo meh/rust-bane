@@ -17,7 +17,7 @@ use std::io::{self, Read, Write, Stdin, Stdout};
 use std::os::unix::io::{AsRawFd, RawFd};
 
 use std::thread;
-use chan;
+use channel;
 
 use libc::{isatty, STDIN_FILENO, STDOUT_FILENO};
 use info;
@@ -44,7 +44,7 @@ pub struct Terminal<I: Read = Stdin, O: Write = Stdout> {
 	output: O,
 
 	input:  Option<I>,
-	events: Option<chan::Receiver<Event>>,
+	events: Option<channel::Receiver<Event>>,
 	keys:   Arc<Mutex<Keys>>,
 
 	database: info::Database,
@@ -212,12 +212,12 @@ impl<I: Read, O: Write> Terminal<I, O> {
 
 impl<I: Read + Send + 'static, O: Write> Terminal<I, O> {
 	/// Prepare for events.
-	pub fn events(&mut self) -> chan::Receiver<Event> {
+	pub fn events(&mut self) -> channel::Receiver<Event> {
 		if self.events.is_none() {
 			let mut stream = self.input.take().unwrap();
 			let     keys   = self.keys.clone();
 
-			let (sender, receiver) = chan::sync(1);
+			let (sender, receiver) = channel::bounded(1);
 			self.resizer           = Some(resize::register(sender.clone()));
 
 			thread::spawn(move || {
@@ -257,15 +257,15 @@ impl<I: Read + Send + 'static, O: Write> Terminal<I, O> {
 							}
 							else {
 								input = &current[b"\x1B[201~".len() ..];
-								sender.send(Event::Paste(result));
+								sender.send(Event::Paste(result)).unwrap();
 							}
 						}
 						else if input.starts_with(b"\x1B[I") {
-							sender.send(Event::Focus(true));
+							sender.send(Event::Focus(true)).unwrap();
 							input = &input[b"\x1B[I".len() ..];
 						}
 						else if input.starts_with(b"\x1B[O") {
-							sender.send(Event::Focus(false));
+							sender.send(Event::Focus(false)).unwrap();
 							input = &input[b"\x1B[O".len() ..];
 						}
 						else {
@@ -273,13 +273,13 @@ impl<I: Read + Send + 'static, O: Write> Terminal<I, O> {
 							input           = rest;
 
 							if let Some(key) = key {
-								sender.send(Event::Key(key));
+								sender.send(Event::Key(key)).unwrap();
 							}
 						}
 					}
 				}
 
-				sender.send(Event::Close);
+				sender.send(Event::Close).unwrap();
 			});
 
 			self.events = Some(receiver.clone());

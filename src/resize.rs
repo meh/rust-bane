@@ -16,13 +16,13 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::mem;
 
-use chan;
+use channel;
 use libc::{sigaction, SIGWINCH, c_int, sighandler_t};
 
 use terminal::Event;
 
 lazy_static! {
-	static ref SUBSCRIBERS: Mutex<(u32, HashMap<u32, chan::Sender<Event>>)> = {
+	static ref SUBSCRIBERS: Mutex<(u32, HashMap<u32, channel::Sender<Event>>)> = {
 		Mutex::new((0, HashMap::new()))
 	};
 }
@@ -34,7 +34,7 @@ unsafe extern "C" fn handler(num: c_int) {
 
 	if let Ok(guard) = SUBSCRIBERS.try_lock() {
 		for subscriber in guard.1.values() {
-			subscriber.send(Event::Resize);
+			subscriber.send(Event::Resize).unwrap();
 		}
 	}
 }
@@ -44,7 +44,7 @@ unsafe extern "C" fn handler(num: c_int) {
 pub struct Handler(u32);
 
 /// Register a new resize handler.
-pub fn register(sender: chan::Sender<Event>) -> Handler {
+pub fn register(sender: channel::Sender<Event>) -> Handler {
 	let mut guard = SUBSCRIBERS.lock().unwrap();
 	let     id    = guard.0 + 1;
 

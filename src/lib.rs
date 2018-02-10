@@ -13,7 +13,7 @@
 //  0. You just DO WHAT THE FUCK YOU WANT TO.
 
 extern crate libc;
-extern crate chan;
+extern crate crossbeam_channel as channel;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
